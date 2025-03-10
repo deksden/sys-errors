@@ -13,7 +13,6 @@ import {
   formatMessage,
   validateDefinition,
   createError,
-  isError,
   SystemError
 } from '../../src/errors/errors.js'
 

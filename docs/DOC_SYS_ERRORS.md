@@ -320,7 +320,7 @@ try {
 
 ### Обработка ошибок
 
-- Проверяйте тип ошибки через isError
+- Проверяйте тип ошибки через свойство code
 - Используйте isRecoverable для retry логики
 - Логируйте ошибки со всем контекстом
 - Обрабатывайте только известные ошибки
@@ -377,7 +377,7 @@ async function processItem(item) {
 try {
   await operation()
 } catch (error) {
-  if (isError(error, ERROR_CODES.SYS.VALIDATION_FAILED)) {
+  if (typeof error === SystemError && error?.code? === ERROR_CODES.SYS.VALIDATION_FAILED) {
     // Обработка ошибки валидации
     console.log('Validation error:', error.message)
   } else if (isRecoverable(error)) {

@@ -1,4 +1,4 @@
-# Подсистема обработки ошибок (docs/errors/SYS_ERRORS.md, v0.3.0)
+# Подсистема обработки ошибок (docs/errors/SYS_ERRORS.md, v0.3.1)
 
 Подсистема: SYS_ERRORS: "errors" система обработки ошибок
 
@@ -274,26 +274,6 @@ export function validateDefinition(definition)
  * @throws {SystemError} При некорректных входных данных в строгом режиме с кодом VALIDATION_FAILED
  */
 export function createError(errorDefinition, context, originalError, options)
-
-/**
- * isError: Проверяет что ошибка определенного типа
- *
- * Описание: Проверяет принадлежность ошибки к определенному типу по коду.
- * Используется для выборочной обработки разных типов ошибок. Учитывает
- * иерархию ошибок через instanceof SystemError.
- *
- * Ожидаемое поведение:
- * - Проверяет что ошибка является SystemError через instanceof
- * - Сверяет код ошибки с определением
- * - Возвращает true только при полном соответствии
- * - Возвращает false для null/undefined error или definition
- * - Возвращает false для обычных Error
- *
- * @param {Error} error - Проверяемая ошибка
- * @param {Object} errorDefinition - Определение ошибки из ERROR_CODES
- * @returns {boolean} true если ошибка соответствует определению
- */
-export function isError(error, errorDefinition)
 
 /**
  * isRecoverable: Проверяет можно ли восстановиться после ошибки
