@@ -216,54 +216,5 @@ describe('(SYS_ERRORS) Подсистема работы с ошибками', (
         expect(error.message).toBe('Missing code')
       })
     })
-
-    describe('isError()', () => {
-      test('должен определить соответствующую ошибку', () => {
-        logger.trace('Тест: определение типа ошибки')
-
-        const error = new SystemError({
-          code: 'TEST_ERROR',
-          message: 'Test error'
-        })
-
-        logger.debug('Проверяемая ошибка:', error)
-        expect(isError(error, { code: 'TEST_ERROR' })).toBe(true)
-      })
-
-      test('должен отклонить обычную ошибку', () => {
-        logger.trace('Тест: обычная ошибка')
-
-        const error = new Error('Regular error')
-        expect(isError(error, { code: 'TEST_ERROR' })).toBe(false)
-      })
-
-      test('должен отклонить ошибку с неправильным кодом', () => {
-        logger.trace('Тест: неправильный код')
-
-        const error = new SystemError({
-          code: 'WRONG_CODE',
-          message: 'Test error'
-        })
-
-        logger.debug('Проверяемая ошибка:', error)
-        expect(isError(error, { code: 'TEST_ERROR' })).toBe(false)
-      })
-
-      test('должен обработать некорректные входные данные', () => {
-        logger.trace('Тест: некорректные входные данные')
-
-        const cases = [
-          [null, {}],
-          [undefined, {}],
-          [{}, null],
-          [{}, undefined]
-        ]
-
-        cases.forEach(([error, definition]) => {
-          logger.debug(`Проверка error=${error}, definition=${definition}`)
-          expect(isError(error, definition)).toBe(false)
-        })
-      })
-    })
   })
 })

@@ -8,6 +8,29 @@ import { SystemError } from './system-error.js'
 import { ERROR_CODES } from './codes.js'
 
 /**
+ * Класс системной ошибки, расширяет стандартный Error
+ * @typedef {Object} SystemError
+ * @extends Error
+ *
+ * @property {string} code - Уникальный код ошибки (например, "SYS_VALIDATION_FAILED")
+ * @property {string} message - Отформатированное сообщение об ошибке
+ * @property {string} msg - Шаблон сообщения об ошибке (возможно, с ключами)
+ * @property {string} subsystem - Подсистема, в которой произошла ошибка
+ * @property {Object} context - Дополнительные данные об ошибке
+ * @property {boolean} recoverable - Флаг возможности восстановления
+ * @property {Error|SystemError} [original] - Исходная ошибка (для цепочки ошибок)
+ * @property {string} [docs] - Ссылка на документацию по ошибке
+ * @property {string} name - Имя класса ошибки ("SystemError")
+ * @property {string} stack - Стек вызовов
+ *
+ * @method format - Возвращает форматированное представление ошибки со всей цепочкой
+ * @returns {string} Форматированное представление ошибки
+ *
+ * @method toJSON - Сериализует ошибку для логирования
+ * @returns {Object} Сериализованное представление ошибки
+ */
+
+/**
  * Зависимости модуля
  */
 export const dependencies = {
@@ -132,23 +155,6 @@ export function createError (errorDefinition, context, originalError, options) {
       error
     )
   }
-}
-
-/**
- * Проверяет что ошибка определенного типа
- *
- * Основная ответственность:
- * - Определение типа ошибки
- * - Проверка кода ошибки
- * - Поддержка иерархии ошибок
- *
- * @param {Error} error - Проверяемая ошибка
- * @param {Object} errorDefinition - Определение ошибки из ERROR_CODES
- * @returns {boolean} true если ошибка соответствует определению
- */
-export function isError (error, errorDefinition) {
-  return error instanceof SystemError &&
-    error.code === errorDefinition?.code
 }
 
 // Реэкспорт базовых сущностей
