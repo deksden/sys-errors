@@ -294,7 +294,7 @@ try {
   await database.saveObject(data)
 } catch (error) {
   // error.code === 'DATABASE_OBJECT_SAVE_FAILED'
-  // error.originalError может быть:
+  // error.origin может быть:
   // 1. Error из БД: new Error('Duplicate key')
   // 2. SystemError: DATABASE_OBJECT_VALIDATION_FAILED
   
@@ -377,7 +377,7 @@ async function processItem(item) {
 try {
   await operation()
 } catch (error) {
-  if (typeof error === SystemError && error?.code? === ERROR_CODES.SYS.VALIDATION_FAILED) {
+  if (typeof error === SystemError && error?.code? === ERROR_CODES.SYS.VALIDATION_FAILED.code) {
     // Обработка ошибки валидации
     console.log('Validation error:', error.message)
   } else if (isRecoverable(error)) {
