@@ -1,4 +1,4 @@
-# Подсистема обработки ошибок (docs/errors/DOC_SYS_ERRORS.md, v0.1.5)
+# Подсистема обработки ошибок (docs/errors/DOC_SYS_ERRORS.md, v0.1.6)
 
 ## 🎯 Краткое описание
 
@@ -294,7 +294,7 @@ try {
   await database.saveObject(data)
 } catch (error) {
   // error.code === 'DATABASE_OBJECT_SAVE_FAILED'
-  // error.origin может быть:
+  // error.original может быть:
   // 1. Error из БД: new Error('Duplicate key')
   // 2. SystemError: DATABASE_OBJECT_VALIDATION_FAILED
   
@@ -424,7 +424,7 @@ async function readUserData(userId) {
 ### Интеграция с логированием
 
 ```javascript
-import { createLogger } from '../logger/logger.js'
+import { createLogger } from '@fab33/sys-logger'
 const logger = createLogger('module')
 
 try {
@@ -490,7 +490,7 @@ function analyzeError(error) {
   while (current) {
     console.log(`- ${current.code}: ${current.message}`)
     console.log('  Context:', current.context)
-    current = current.originalError
+    current = current.original
   }
 }
 ```
