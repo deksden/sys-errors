@@ -1,0 +1,50 @@
+{
+  "output": {
+    "filePath": "_sys-errors-repo.xml",
+    "style": "xml",
+    "parsableStyle": false,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "topFilesLength": 5,
+    "showLineNumbers": false,
+    "copyToClipboard": false
+  },
+  "include": [
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "data",
+      "_test-results.json",
+      "docs/cases/",
+      "test/txt/txt-compare-js/",
+      "test/txt/txt-extract-js/",
+      "test/txt/txt-normalize-js/",
+      "test/txt/txt-validate-js/",
+      "test/txt/txt-core-js/",
+      "test/txt/txt-indentation-js/",
+      "docs/RULEZZ.md",
+      "logs",
+      ".idea",
+      ".run",
+      ".aider",
+      "*.patch",
+      "*.log",
+      "docs/_legacy/",
+      "LICENSE",
+      "log.txt",
+      "all-files*.*",
+      "repomix*.*",
+      "_repo"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

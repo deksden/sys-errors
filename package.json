@@ -1,6 +1,6 @@
 {
   "name": "@fab33/sys-errors",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "Centralized error handling system with error chaining, operation errors pattern, and logging integration",
   "type": "module",
   "main": "src/errors/errors.js",
@@ -11,7 +11,9 @@
     "test": "dotenvx run -- vitest run test/**/*.test.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "get-tree": "tree -a -L 5 --matchdirs --ignore-case --dirsfirst --sort name -I 'node_modules|docs|.aider*|.idea*|_legacy*|.git|*logs*' > all-files-and-directories.txt"
+    "get-tree": "tree -a -L 5 --matchdirs --ignore-case --dirsfirst --sort name -I 'node_modules|docs|.aider*|.idea*|_legacy*|.git|*logs*' > all-files-and-directories.txt",
+    "repomix:all": "repomix",
+    "repomix:no-tests": "repomix --ignore test/"
   },
   "repository": {
     "type": "git",

@@ -1,6 +1,8 @@
+_sys*.xml
+_test-results.json
+package-lock.json
 .idea
 .aider
-package-lock.json
 
 # Logs
 logs

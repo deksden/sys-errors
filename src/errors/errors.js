@@ -1,7 +1,7 @@
 /**
  * @file src/errors/errors.js
  * @description Основной API подсистемы обработки ошибок SYS_ERRORS
- * @version 0.1.3
+ * @version 0.1.5
  */
 
 import { SystemError } from './system-error.js'
@@ -155,6 +155,70 @@ export function createError (errorDefinition, context, originalError, options) {
       error
     )
   }
+}
+
+/**
+ * Описание уровня в цепочке ошибок
+ * @typedef {Object} ErrorChainLevel
+ * @property {string} code - Ожидаемый код ошибки
+ * @property {string} [type] - Ожидаемый тип/класс ошибки
+ * @property {string|string[]} [message] - Фрагмент сообщения для поиска или массив ключевых слов
+ */
+
+/**
+ * Проверяет цепочку ошибок
+ * @param {SystemError} error - Проверяемая ошибка
+ * @param {ErrorChainLevel[]} expectedChain - Ожидаемая цепочка
+ * @returns {boolean} true если цепочка соответствует
+ * @throws {Error} если цепочка не соответствует
+ * @deterministic
+ */
+export function checkErrorChain (error, expectedChain) {
+  let current = error
+  let index = 0
+
+  while (current && index < expectedChain.length) {
+    const expected = expectedChain[index]
+
+    // Проверяем код ошибки если указан
+    if (expected.code && current.code !== expected.code) {
+      throw new Error(`Unexpected error code at chain position ${index}. ` + `Expected: ${expected.code}, got: ${current.code}, "${current.message}"`)
+    }
+
+    // Проверяем тип если указан
+    if (expected.type && current.constructor.name !== expected.type) {
+      throw new Error(`Unexpected error type at chain position ${index}. ` + `Expected: ${expected.type}, got: ${current.constructor.name}, "${current.message}"`)
+    }
+
+    // Проверяем сообщение если указано
+    if (expected.message) {
+      // Убедимся что сообщение существует
+      if (!current.message) {
+        throw new Error(`Error at chain position ${index} does not have a message property\n` +
+          `Error: ${JSON.stringify(current)}`)
+      }
+
+      const currentMessage = current.message.toLowerCase()
+      // Если message - массив, проверяем каждое ключевое слово
+      if (Array.isArray(expected.message)) {
+        for (const keyword of expected.message) {
+          if (!currentMessage.includes(keyword.toLowerCase())) {
+            throw new Error(`Error message at chain position ${index} does not contain keyword: ${keyword}\n` + `Message: "${current.message}"`)
+          }
+        }
+      } else {
+        // Проверяем отдельное слово
+        if (!currentMessage.includes(expected.message.toLowerCase())) {
+          throw new Error(`Error message at chain position ${index} does not contain: ${expected.message}\n` + `Message: "${current.message}"`)
+        }
+      }
+    }
+
+    current = current.original
+    index++
+  }
+
+  return true
 }
 
 // Реэкспорт базовых сущностей
