@@ -1,218 +1,299 @@
 /**
  * @file test/errors/errors.test.js
- * @version 0.1.5
- * @tested-file src/errors/errors-nodes.js
- * @tested-file-version 0.1.3
+ * @description Юнит-тесты для основного API подсистемы ошибок.
+ * @version 0.1.8
+ * @tested-file src/errors/errors.js
+ * @tested-file-version 0.1.7
  * @test-doc docs/tests/TESTS_SYS_ERRORS, v0.2.1.md
  */
 
-import { describe, expect, test, beforeEach } from 'vitest'
+import { describe, expect, test, beforeEach, afterEach, vi } from 'vitest'
 import { createLogger } from '@fab33/sys-logger'
 
 import {
   formatMessage,
   validateDefinition,
   createError,
-  SystemError
+  checkErrorChain,
+  SystemError, // Импортируем реальный SystemError
+  ERROR_CODES, // Импортируем реальные ERROR_CODES
+  dependencies, // Импортируем DI объект
+  setDependencies // Импортируем функцию установки DI
 } from '../../src/errors/errors.js'
 
-/**
- * ВАЖНОЕ РЕШЕНИЕ ПО ТЕСТИРОВАНИЮ:
- *
- * После анализа подхода с моком SystemError было принято решение
- * отказаться от мока в пользу реального класса SystemError. Причины:
- *
- * 1. Мок создавал сложности:
- *    - Сложная реализация мока
- *    - Хрупкость тестов
- *    - Ошибки в самом моке
- *    - Неполное соответствие реальному поведению
- *
- * 2. Все необходимые проверки можно выполнить с реальным классом:
- *    - Проверка создания с разными параметрами
- *    - Проверка обработки ошибок
- *    - Проверка валидации
- *    - Проверка recoverable флага
- *    - Проверка работы с разными режимами
- *
- * 3. Преимущества использования реального класса:
- *    - Тестируем реальное поведение системы
- *    - Более простые и понятные тесты
- *    - Лучшая устойчивость к рефакторингу
- *    - Тесты ближе к реальному использованию
- *
- * 4. Мокаем только действительно необходимые зависимости:
- *    - Внешние системы
- *    - Базы данных
- *    - Файловую систему
- *    - Сетевые вызовы
- */
-
-// Используем реальный логгер для отладки тестов
+// Логгер для тестов
 const logger = createLogger('test:errors')
 
+// Сохраняем оригинальные зависимости
+const originalDeps = { ...dependencies }
+let originalNodeEnv
+
 describe('(SYS_ERRORS) Подсистема работы с ошибками', () => {
-  describe('(errors-nodes.js) Основной API подсистемы обработки ошибок', () => {
+  describe('(errors.js) Основной API подсистемы обработки ошибок', () => {
     beforeEach(() => {
-      logger.trace('Инициализация тестов errors-nodes.js')
-      // Устанавливаем окружение
+      logger.trace('Инициализация тестов errors.js')
+      // Восстанавливаем реальные зависимости перед каждым тестом
+      setDependencies(originalDeps)
+      // Сохраняем и устанавливаем NODE_ENV для тестов по умолчанию (strict)
+      originalNodeEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'development'
     })
 
+    afterEach(() => {
+      // Восстанавливаем NODE_ENV
+      process.env.NODE_ENV = originalNodeEnv
+    })
+
+    // --- formatMessage() ---
     describe('formatMessage()', () => {
-      test('должен подставить значения из контекста', () => {
-        logger.trace('Тест: подстановка значений в шаблон')
-
-        const template = 'Error: {code} at {line}'
-        const context = { code: 'TEST', line: 42 }
-
+      test('должен корректно подставлять значения из контекста', () => {
+        logger.trace('Тест formatMessage: подстановка значений')
+        const template = 'Error: {code} occurred in {module} on line {line}.'
+        const context = { code: 'E101', module: 'parser', line: 42 }
         const result = formatMessage(template, context)
-        logger.debug('Отформатированное сообщение:', result)
-
-        expect(result).toBe('Error: TEST at 42')
+        logger.debug({ template, context, result }, 'Результат форматирования')
+        expect(result).toBe('Error: E101 occurred in parser on line 42.')
       })
 
-      test('должен сохранить плейсхолдеры при отсутствии значений', () => {
-        logger.trace('Тест: отсутствующие значения')
-
-        const template = 'Missing value: {key}'
-        const context = {}
-
+      test('должен оставлять плейсхолдеры, если значения в контексте нет', () => {
+        logger.trace('Тест formatMessage: отсутствующие значения')
+        const template = 'User: {userId}, Action: {action}'
+        const context = { userId: 123 } // action отсутствует
         const result = formatMessage(template, context)
-        logger.debug('Отформатированное сообщение:', result)
-
-        expect(result).toBe('Missing value: {key}')
+        logger.debug({ template, context, result }, 'Результат форматирования')
+        expect(result).toBe('User: 123, Action: {action}')
       })
 
-      test('должен корректно обработать null и undefined', () => {
-        logger.trace('Тест: null/undefined значения')
-
-        const template = 'Values: {null}, {undefined}'
-        const context = { null: null, undefined }
-
+      test('должен корректно обрабатывать null и undefined в контексте', () => {
+        logger.trace('Тест formatMessage: null/undefined значения')
+        const template = 'Values: null={valNull}, undef={valUndef}'
+        const context = { valNull: null, valUndef: undefined }
         const result = formatMessage(template, context)
-        logger.debug('Отформатированное сообщение:', result)
-
-        expect(result).toBe('Values: {null}, {undefined}')
+        logger.debug({ template, context, result }, 'Результат форматирования')
+        // Плейсхолдеры остаются, так как значения null/undefined
+        expect(result).toBe('Values: null={valNull}, undef={valUndef}')
       })
 
-      test('должен обработать пустые входные данные', () => {
-        logger.trace('Тест: пустые входные данные')
+      test('должен возвращать пустую строку при некорректном шаблоне', () => {
+        logger.trace('Тест formatMessage: некорректный шаблон')
+        // ИСПРАВЛЕНО: Проверяем null и другие типы
+        expect(formatMessage(null)).toBe('')
+        expect(formatMessage(undefined)).toBe('')
+        expect(formatMessage(123)).toBe('')
+        expect(formatMessage({})).toBe('')
+      })
 
-        expect(formatMessage()).toBe('')
+      test('должен обрабатывать пустой шаблон или контекст', () => {
+        logger.trace('Тест formatMessage: пустые входные данные')
         expect(formatMessage('')).toBe('')
-        expect(formatMessage('', null)).toBe('')
-        expect(formatMessage('', undefined)).toBe('')
+        expect(formatMessage('Template', {})).toBe('Template')
+        expect(formatMessage('Template', null)).toBe('Template')
       })
     })
 
+    // --- validateDefinition() ---
     describe('validateDefinition()', () => {
-      test('должен принять корректное определение', () => {
-        logger.trace('Тест: валидное определение')
-
-        const definition = {
-          code: 'TEST_ERROR',
-          message: 'Test error: {reason}'
-        }
-
+      test('должен возвращать пустой массив для корректного определения', () => {
+        logger.trace('Тест validateDefinition: валидное определение')
+        const definition = { code: 'VALID_CODE', message: 'Valid message' }
         const problems = validateDefinition(definition)
-        logger.debug('Найденные проблемы:', problems)
-
-        expect(problems).toHaveLength(0)
+        logger.debug({ definition, problems }, 'Результат валидации')
+        expect(problems).toEqual([])
       })
 
-      test('должен найти отсутствующие обязательные поля', () => {
-        logger.trace('Тест: отсутствующие поля')
-
-        const problems = validateDefinition({})
-        logger.debug('Найденные проблемы:', problems)
-
-        expect(problems).toContain('Missing error code')
-        expect(problems).toContain('Missing error message')
-      })
-
-      test('должен проверить формат кода ошибки', () => {
-        logger.trace('Тест: формат кода ошибки')
-
-        const definition = {
-          code: 'invalid-code',
-          message: 'Test'
-        }
-
+      test('должен найти отсутствующие обязательные поля для пустого объекта', () => {
+        logger.trace('Тест validateDefinition: отсутствующие поля ({})')
+        const definition = {}
         const problems = validateDefinition(definition)
-        logger.debug('Найденные проблемы:', problems)
-
-        expect(problems).toContain('Invalid error code format')
+        logger.debug({ definition, problems }, 'Результат валидации')
+        // Ожидаем точные сообщения об отсутствующих полях
+        expect(problems).toContain('Missing or invalid error code (must be a non-empty string).')
+        expect(problems).toContain('Missing or invalid error message (must be a non-empty string).')
+        expect(problems).toHaveLength(2)
       })
 
-      test('должен обработать некорректные входные данные', () => {
-        logger.trace('Тест: некорректные входные данные')
+      test('должен проверить неверный формат кода ошибки', () => {
+        logger.trace('Тест validateDefinition: неверный формат кода')
+        const definition = { code: 'invalid-code', message: 'Test Message' }
+        const problems = validateDefinition(definition)
+        logger.debug({ definition, problems }, 'Результат валидации')
+        // Ожидаем точное сообщение об ошибке формата
+        expect(problems).toContain('Invalid error code format (must be UPPER_SNAKE_CASE, starting with a letter).')
+      })
 
-        const cases = [undefined, null]
+      test('должен возвращать "Definition is missing or invalid." для null и undefined', () => {
+        logger.trace('Тест validateDefinition: null/undefined')
+        const cases = [null, undefined]
         cases.forEach(input => {
           const problems = validateDefinition(input)
-          logger.debug(`Проблемы для ${input}:`, problems)
-          expect(problems).toContain('Missing error code')
+          logger.debug({ input, problems }, 'Результат валидации для null/undefined')
+          // Ожидаем специфичное сообщение для этих случаев
+          expect(problems).toEqual(['Definition is missing or invalid.'])
+        })
+      })
+
+      test('должен возвращать "Definition is missing or invalid." для других невалидных типов', () => {
+        logger.trace('Тест validateDefinition: другие невалидные типы')
+        const cases = [123, 'string', true, []]
+        cases.forEach(input => {
+          const problems = validateDefinition(input)
+          logger.debug({ input, problems }, `Результат валидации для ${typeof input}`)
+          // Ожидаем то же сообщение, что и для null/undefined
+          expect(problems).toEqual(['Definition is missing or invalid.'])
         })
       })
     })
 
+    // --- createError() ---
     describe('createError()', () => {
-      const validDefinition = {
-        code: 'TEST_ERROR',
-        message: 'Test error: {reason}',
-        subsystem: 'test',
-        recoverable: false
-      }
+      const validDefinition = ERROR_CODES.SYS.NOT_IMPLEMENTED
+      const context = { feature: 'Test Feature' }
+      const originalError = new Error('Original Cause')
 
-      test('должен создать ошибку с полными данными', () => {
-        logger.trace('Тест: создание полной ошибки')
-
-        const context = { reason: 'test failure' }
-        const originalError = new Error('Original error')
-
+      test('должен успешно создать SystemError с полными данными', () => {
+        logger.trace('Тест createError: успешное создание')
         const error = createError(validDefinition, context, originalError)
-        logger.debug('Созданная ошибка:', error)
-
+        logger.debug({ error: error.toJSON() }, 'Созданная ошибка')
         expect(error).toBeInstanceOf(SystemError)
-        expect(error.code).toBe('TEST_ERROR')
-        expect(error.message).toBe('Test error: test failure')
-        expect(error.subsystem).toBe('test')
-        expect(error.recoverable).toBe(false)
+        expect(error.code).toBe(validDefinition.code)
+        expect(error.message).toBe(formatMessage(validDefinition.message, context))
         expect(error.context).toEqual(context)
         expect(error.original).toBe(originalError)
       })
 
-      test('должен валидировать определение в строгом режиме', () => {
-        logger.trace('Тест: строгая валидация')
-
-        const invalidDefinition = {
-          message: 'Missing code'
-        }
-
-        const error = createError(invalidDefinition)
-        logger.debug('Созданная ошибка:', error)
-
-        // Проверяем что создана ошибка валидации
-        expect(error).toBeInstanceOf(SystemError)
-        expect(error.code).toBe('SYS_VALIDATION_FAILED')
-        expect(error.message).toContain('Invalid error definition')
+      test('должен вернуть SYS_VALIDATION_FAILED при невалидном definition в strict режиме', () => {
+        logger.trace('Тест createError: невалидное definition (strict)')
+        process.env.NODE_ENV = 'development'
+        const invalidDefinition = { message: 'Only message' }
+        const error = createError(invalidDefinition, {}, originalError)
+        logger.debug({ error: error.toJSON() }, 'Созданная ошибка валидации')
+        expect(error.code).toBe(ERROR_CODES.SYS.VALIDATION_FAILED.code)
+        expect(error.context.reason).toBe('Invalid error definition provided to createError')
+        expect(error.context.problems).toEqual(['Missing or invalid error code (must be a non-empty string).'])
+        expect(error.original).toBe(originalError)
       })
 
-      test('должен пропустить валидацию в production', () => {
-        logger.trace('Тест: production режим')
+      test('должен вернуть SYS_UNEXPECTED при ошибке внутри конструктора SystemError (из-за contextKeys)', () => {
+        logger.trace('Тест createError: ошибка конструктора SystemError (contextKeys)')
+        process.env.NODE_ENV = 'development' // strict режим
+        // Используем реальное определение, требующее contextKeys
+        const defRequiresContext = ERROR_CODES.SYS.VALIDATION_FAILED
+        // Передаем контекст без обязательного ключа 'problems'
+        const invalidContext = { reason: 'Missing problems key', problemsText: 'problems missing' }
 
-        process.env.NODE_ENV = 'production'
+        // Не мокаем конструктор, а провоцируем реальную ошибку
+        const error = createError(defRequiresContext, invalidContext, originalError)
+        logger.debug({ error: error.toJSON() }, 'Созданная ошибка SYS_UNEXPECTED')
 
-        const invalidDefinition = {
-          message: 'Missing code'
-        }
+        // Проверяем, что createError вернул SYS_UNEXPECTED
+        expect(error.code).toBe(ERROR_CODES.SYS.UNEXPECTED.code)
+        expect(error.context.reason).toMatch(/Missing required context keys: problems/) // Проверяем причину
+        expect(error.context.failedDefinition).toBe(defRequiresContext)
+        expect(error.context.failedContext).toBe(invalidContext)
+        // Проверяем, что original содержит ошибку, выброшенную конструктором SystemError
+        expect(error.original).toBeInstanceOf(Error)
+        expect(error.original.message).toMatch(/Missing required context keys: problems/)
+      })
+
+      test('должен вернуть SYS_UNEXPECTED в non-strict режиме, если конструктор упадет', () => {
+        logger.trace('Тест createError: non-strict режим, падение конструктора')
+        process.env.NODE_ENV = 'production' // non-strict
+        const invalidDefinition = { message: 'Only message' } // Нет code
 
         const error = createError(invalidDefinition)
-        logger.debug('Созданная ошибка:', error)
+        logger.debug({ error: error.toJSON() }, 'Созданная ошибка (non-strict)')
 
-        expect(error).toBeInstanceOf(SystemError)
-        expect(error.message).toBe('Missing code')
+        // Конструктор SystemError упадет из-за отсутствия code, createError вернет SYS_UNEXPECTED
+        expect(error.code).toBe(ERROR_CODES.SYS.UNEXPECTED.code)
+        expect(error.original).toBeInstanceOf(Error)
+        expect(error.original.message).toContain('SystemError constructor: Invalid or incomplete error definition passed.')
+        expect(error.context.reason).toBe(error.original.message) // Причина берется из ошибки конструктора
+      })
+    })
+
+    // --- checkErrorChain() ---
+    describe('checkErrorChain()', () => {
+      // Создаем тестовые ошибки
+      const errLvl2 = new SystemError(ERROR_CODES.SYS.INVALID_ARGUMENT, { name: 'arg1', reason: 'is null' })
+      const errLvl1 = new SystemError(
+        ERROR_CODES.SYS.VALIDATION_FAILED,
+        { reason: 'Outer fail', problems: ['p1'], problemsText: 'Problem 1' }, // Добавлен problems
+        errLvl2
+      )
+
+      test('должен вернуть true для соответствующей цепочки', () => {
+        logger.trace('Тест checkErrorChain: успешная проверка')
+        const expectedChain = [
+          { code: 'SYS_VALIDATION_FAILED', type: 'SystemError', message: 'Outer fail' },
+          { code: 'SYS_INVALID_ARGUMENT', message: ['argument', 'null'] }
+        ]
+        expect(() => checkErrorChain(errLvl1, expectedChain)).not.toThrow()
+        expect(checkErrorChain(errLvl1, expectedChain)).toBe(true)
+      })
+
+      test('должен выбросить ошибку при неверном коде', () => {
+        logger.trace('Тест checkErrorChain: неверный код')
+        const expectedChain = [
+          { code: 'SYS_UNEXPECTED' },
+          { code: 'SYS_INVALID_ARGUMENT' }
+        ]
+        expect(() => checkErrorChain(errLvl1, expectedChain)).toThrow(/Expected code 'SYS_UNEXPECTED', got 'SYS_VALIDATION_FAILED'/)
+      })
+
+      test('должен выбросить ошибку при неверном типе', () => {
+        logger.trace('Тест checkErrorChain: неверный тип')
+        const errLvl2TypeError = new TypeError('Original type error')
+        const errLvl1WithTypeError = new SystemError(
+          ERROR_CODES.SYS.UNEXPECTED,
+          { reason: 'Wrapping TypeError' },
+          errLvl2TypeError
+        )
+        const expectedChain = [
+          { code: 'SYS_UNEXPECTED' },
+          { type: 'SystemError' } // Ожидаем SystemError, а там TypeError
+        ]
+        expect(() => checkErrorChain(errLvl1WithTypeError, expectedChain)).toThrow(/Expected type 'SystemError', got 'TypeError'/)
+      })
+
+      test('должен выбросить ошибку, если сообщение не содержит фрагмент', () => {
+        logger.trace('Тест checkErrorChain: неверное сообщение (строка)')
+        const expectedChain = [
+          { code: 'SYS_VALIDATION_FAILED', message: 'NonExistentWord' }
+        ]
+        expect(() => checkErrorChain(errLvl1, expectedChain)).toThrow(/Message does not contain expected text 'NonExistentWord'/)
+      })
+
+      test('должен выбросить ошибку, если сообщение не содержит один из фрагментов массива', () => {
+        logger.trace('Тест checkErrorChain: неверное сообщение (массив)')
+        const expectedChain = [
+          { code: 'SYS_VALIDATION_FAILED' },
+          { code: 'SYS_INVALID_ARGUMENT', message: ['argument', 'NonExistentWord'] }
+        ]
+        expect(() => checkErrorChain(errLvl1, expectedChain)).toThrow(/Message does not contain expected text 'NonExistentWord'/)
+      })
+
+      test('должен выбросить ошибку, если ожидаемая цепочка длиннее фактической', () => {
+        logger.trace('Тест checkErrorChain: ожидаемая цепочка длиннее')
+        const expectedChain = [
+          { code: 'SYS_VALIDATION_FAILED' },
+          { code: 'SYS_INVALID_ARGUMENT' },
+          { code: 'SOME_THIRD_LEVEL_ERROR' }
+        ]
+        expect(() => checkErrorChain(errLvl1, expectedChain)).toThrow(/Expected 3 levels, but error chain ended at level 2/)
+      })
+
+      test('должен выбросить ошибку, если фактическая цепочка длиннее ожидаемой', () => {
+        logger.trace('Тест checkErrorChain: фактическая цепочка длиннее')
+        const expectedChain = [
+          { code: 'SYS_VALIDATION_FAILED' } // Ожидаем только 1 уровень
+        ]
+        expect(() => checkErrorChain(errLvl1, expectedChain)).toThrow(/Error chain has more levels than expected \(1\)/)
+      })
+
+      test('должен выбросить ошибку при некорректном expectedChain', () => {
+        logger.trace('Тест checkErrorChain: некорректный expectedChain')
+        expect(() => checkErrorChain(errLvl1, null)).toThrow(/expectedChain must be an array/)
+        expect(() => checkErrorChain(errLvl1, {})).toThrow(/expectedChain must be an array/)
       })
     })
   })

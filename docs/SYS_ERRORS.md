@@ -1,4 +1,4 @@
-# Подсистема обработки ошибок (docs/errors/SYS_ERRORS.md, v0.3.1)
+# Подсистема обработки ошибок (docs/errors/SYS_ERRORS.md, v0.1.8)
 
 Подсистема: SYS_ERRORS: "errors" система обработки ошибок
 

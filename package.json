@@ -1,6 +1,6 @@
 {
   "name": "@fab33/sys-errors",
-  "version": "0.1.5",
+  "version": "0.1.8",
   "description": "Centralized error handling system with error chaining, operation errors pattern, and logging integration",
   "type": "module",
   "main": "src/errors/errors.js",
