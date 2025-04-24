@@ -4,6 +4,7 @@
   "description": "Centralized error handling system with error chaining, operation errors pattern, and logging integration",
   "type": "module",
   "main": "src/errors/errors.js",
+  "types": "src/errors/errors.d.ts",
   "files": [
     "src/errors"
   ],
